@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>릴레이 피칭 실시간 집계</title>
+<link rel="icon" href="title.webp">
+<script src="config.js"></script>
+<script src="qrcode.js"></script>
+<style>
+@font-face{font-family:'Paperlogy';src:url('paperlogy-500.woff2') format('woff2');font-weight:500;font-display:swap;}
+@font-face{font-family:'Paperlogy';src:url('paperlogy-800.woff2') format('woff2');font-weight:800;font-display:swap;}
+:root{--bg:#050304;--panel:#110f11;--line:#262326;--pink:#E094B7;--yellow:#F3EC8F;--sky:#8DC8E6;--teal:#1797D6;--green:#46d38a;--muted:#B4AFB3;--faint:#6f6a6e;}
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{background:var(--bg);color:#fff;font-family:'Paperlogy','Apple SD Gothic Neo','Malgun Gothic',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden;}
+.stage{height:100vh;display:grid;grid-template-rows:auto 1fr;padding:3.2vh 4vw 4vh;gap:3vh;}
+.top{display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:1.6vw;}
+.brand img{height:9vh;width:auto;display:block;}
+.brand .cap{font-size:2.6vh;font-weight:800;color:var(--teal);line-height:1.2;}
+.brand .cap span{display:block;color:#fff;font-size:3.4vh;}
+.status{display:flex;align-items:center;gap:1vh;font-size:2.6vh;font-weight:800;padding:1.2vh 2.4vh;border-radius:999px;background:#222;color:var(--muted);}
+.status i{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--faint);}
+.status.open{background:rgba(70,211,138,.14);color:var(--green);}
+.status.open i{background:var(--green);animation:pulse 1.4s infinite;}
+.status.closed{background:rgba(224,148,183,.16);color:var(--pink);}
+.status.closed i{background:var(--pink);}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(70,211,138,.6)}70%{box-shadow:0 0 0 1.4vh rgba(70,211,138,0)}100%{box-shadow:0 0 0 0 rgba(70,211,138,0)}}
+
+.main{display:grid;grid-template-columns:1.55fr 1fr;gap:3vw;min-height:0;}
+.board{background:var(--panel);border:1px solid var(--line);border-radius:3vh;padding:5vh 4vw;display:flex;flex-direction:column;justify-content:space-between;min-height:0;}
+.round{display:flex;align-items:baseline;gap:1.6vw;}
+.round .lab{font-size:3vh;font-weight:800;color:var(--muted);}
+.round .no{font-size:13vh;font-weight:800;line-height:.9;color:#fff;}
+.round .no small{font-size:5vh;margin-left:.4vw;}
+.round .en{font-size:2.6vh;font-weight:500;color:var(--faint);}
+.nums{display:grid;grid-template-columns:1.25fr 1fr;gap:3vw;align-items:end;}
+.metric .k{font-size:3vh;font-weight:800;color:var(--muted);margin-bottom:1.4vh;}
+.metric .k span{font-weight:500;color:var(--faint);font-size:2.4vh;margin-left:.8vw;}
+.count{font-size:26vh;font-weight:800;line-height:.82;color:var(--yellow);letter-spacing:-.02em;display:inline-block;}
+.count small{font-size:6vh;color:var(--muted);margin-left:.6vw;letter-spacing:0;}
+.bump{animation:bump .45s cubic-bezier(.2,1.6,.4,1);}
+@keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.rank{display:inline-flex;align-items:center;justify-content:center;min-width:24vh;height:24vh;padding:0 4vh;border-radius:999px;font-size:11vh;font-weight:800;color:#000;background:#2a272a;transition:background .3s ease,color .3s ease;}
+.rank sup{font-size:5vh;margin-left:.3vh;vertical-align:top;position:relative;top:1.2vh;}
+.rank.r1{background:var(--yellow);box-shadow:1.4vh 1.4vh 0 var(--pink);}
+.rank.r2{background:var(--sky);box-shadow:1.4vh 1.4vh 0 var(--yellow);}
+.rank.r3{background:var(--pink);box-shadow:1.4vh 1.4vh 0 var(--sky);}
+.rank.r4{background:#3a363a;color:#fff;box-shadow:1.4vh 1.4vh 0 #1d1b1d;}
+.rank.none{background:#1f1d1f;color:var(--faint);}
+.note{font-size:2.3vh;font-weight:500;color:var(--faint);}
+
+.qrcard{background:#fff;color:#000;border-radius:3vh;padding:4vh 3vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3vh;min-height:0;box-shadow:1.6vh 1.6vh 0 var(--sky);}
+.qrcard .tag{background:var(--yellow);font-size:3vh;font-weight:800;padding:1vh 3vh;border-radius:999px;box-shadow:.6vh .6vh 0 var(--pink);transform:rotate(-3deg);}
+#qr{width:min(42vh,26vw);height:min(42vh,26vw);}
+#qr svg{width:100%;height:100%;display:block;}
+.qrcard h2{margin:0;font-size:4vh;font-weight:800;text-align:center;line-height:1.25;}
+.qrcard p{margin:0;font-size:2.4vh;font-weight:500;color:#5c565a;}
+.idle-msg{display:none;}
+.is-idle .round,.is-idle .nums,.is-idle .note{display:none;}
+.is-idle .idle-msg{display:flex;flex:1;flex-direction:column;justify-content:center;gap:2vh;}
+.idle-msg b{font-size:8vh;font-weight:800;line-height:1.2;}
+.idle-msg span{font-size:3vh;color:var(--muted);font-weight:500;}
+.conn{position:fixed;right:1.4vw;bottom:1.2vh;font-size:1.6vh;color:var(--faint);}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="top">
+    <div class="brand">
+      <img src="title.webp" alt="2026 Beyond OI">
+      <div class="cap">Relay Pitching Live Vote<span>릴레이 피칭 실시간 집계</span></div>
+    </div>
+    <div class="status" id="status"><i></i><span id="statusText">연결 중</span></div>
+  </div>
+
+  <div class="main">
+    <section class="board" id="board">
+      <div class="round">
+        <span class="no" id="roundNo">-</span>
+        <div><div class="lab">현재 회차</div><div class="en" id="roundEn">ROUND</div></div>
+      </div>
+      <div class="nums">
+        <div class="metric">
+          <div class="k">이번 회차 득표<span>VOTES</span></div>
+          <div class="count" id="count">0<small>표</small></div>
+        </div>
+        <div class="metric">
+          <div class="k">현재 순위<span>RANK</span></div>
+          <div class="rank none" id="rank">–</div>
+        </div>
+      </div>
+      <div class="note" id="note">전체 회차 득표수 기준 순위 · 동점은 같은 순위</div>
+      <div class="idle-msg"><b>곧 릴레이 피칭<br>투표가 시작됩니다</b><span>오른쪽 QR을 미리 스캔해 두세요 · Scan the QR now</span></div>
+    </section>
+
+    <aside class="qrcard">
+      <span class="tag">릴레이 피칭 투표</span>
+      <div id="qr"></div>
+      <h2>QR을 스캔해<br>투표해주세요</h2>
+      <p>Scan the QR code to vote</p>
+    </aside>
+  </div>
+</div>
+<div class="conn" id="conn"></div>
+
+<script>
+  const VOTE_URL = window.VOTE_PAGE;
+  const $ = id => document.getElementById(id);
+  try{
+    const q = qrcode(0, 'M'); q.addData(VOTE_URL); q.make();
+    $('qr').innerHTML = q.createSvgTag({cellSize: 8, margin: 0, scalable: true});
+  }catch(e){ $('qr').textContent = VOTE_URL; }
+
+  let last = null, timer = null, fails = 0;
+  const RANKS = {1:['1','st','r1'], 2:['2','nd','r2'], 3:['3','rd','r3']};
+
+  function render(b){
+    const board = $('board');
+    board.classList.toggle('is-idle', !b.round);
+    const st = $('status');
+    st.className = 'status ' + (b.status === 'open' ? 'open' : b.status === 'closed' ? 'closed' : '');
+    $('statusText').textContent = b.status === 'open' ? '투표 진행 중 · VOTING OPEN'
+      : b.status === 'closed' ? '투표 마감 · CLOSED' : '대기 중 · STANDBY';
+    if(!b.round){ last = b; return; }
+
+    $('roundNo').innerHTML = b.round + '<small>회차</small>';
+    $('roundEn').textContent = 'ROUND ' + b.round;
+    const c = $('count');
+    if(!last || last.count !== b.count || last.round !== b.round){
+      c.innerHTML = b.count + '<small>표</small>';
+      c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+    }
+    const r = $('rank');
+    if(!b.rank){ r.className = 'rank none'; r.textContent = '–'; }
+    else if(b.rank <= 3){ const x = RANKS[b.rank]; r.className = 'rank ' + x[2]; r.innerHTML = x[0] + '<sup>' + x[1] + '</sup>'; }
+    else { r.className = 'rank r4'; r.innerHTML = '4<sup>+</sup>'; }
+    last = b;
+  }
+
+  const API = window.VOTE_API;
+  function call(action, params){
+    const q = new URLSearchParams(Object.assign({api: action, t: Date.now()}, params || {}));
+    return fetch(API + '?' + q.toString(), {cache: 'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); });
+  }
+  async function poll(){
+    clearTimeout(timer);
+    try{ render(await call('board')); fails = 0; $('conn').textContent = ''; }
+    catch(e){ if(++fails > 2) $('conn').textContent = '재연결 중…'; }
+    timer = setTimeout(poll, 2000);
+  }
+  poll();
+</script>
+</body>
+</html>

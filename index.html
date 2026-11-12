@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beyond OI 릴레이 피칭 투표</title>
+<meta name="theme-color" content="#050304">
+<link rel="icon" href="title.webp">
+<link rel="preload" href="paperlogy-800.woff2" as="font" type="font/woff2" crossorigin>
+<script src="config.js"></script>
+<style>
+@font-face{font-family:'Paperlogy';src:url('paperlogy-500.woff2') format('woff2');font-weight:500;font-display:swap;}
+@font-face{font-family:'Paperlogy';src:url('paperlogy-800.woff2') format('woff2');font-weight:800;font-display:swap;}
+:root{--bg:#050304;--pink:#E094B7;--yellow:#F3EC8F;--sky:#8DC8E6;--teal:#1797D6;--muted:#B4AFB3;--faint:#7E787C;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;}
+body{background:var(--bg);color:#fff;font-family:'Paperlogy','Apple SD Gothic Neo','Malgun Gothic',sans-serif;-webkit-font-smoothing:antialiased;}
+.wrap{min-height:100%;max-width:480px;margin:0 auto;padding:22px 20px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.cap{margin:0 0 10px;font-size:15px;font-weight:800;color:var(--teal);}
+.title{display:block;width:min(44vw,190px);height:auto;}
+.tag{margin:14px 0 0;display:inline-block;background:var(--yellow);color:#000;font-size:17px;font-weight:800;padding:8px 20px 9px;border-radius:999px;transform:rotate(-3deg);box-shadow:4px 4px 0 var(--pink);}
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px 0 8px;}
+.view{display:none;width:100%;flex-direction:column;align-items:center;}
+.view.on{display:flex;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.round{font-size:15px;font-weight:800;color:#000;background:var(--sky);border-radius:999px;padding:6px 16px;margin-bottom:16px;}
+.round.dim{background:#2a272a;color:var(--muted);}
+h1{margin:0;font-size:26px;font-weight:800;line-height:1.35;word-break:keep-all;}
+.en{margin:6px 0 0;font-size:14.5px;font-weight:500;color:var(--muted);line-height:1.5;}
+.vote-btn{margin-top:24px;width:min(56vw,230px);aspect-ratio:1;border:none;border-radius:50%;background:var(--yellow);color:#000;font-family:inherit;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:8px 8px 0 var(--sky);transition:transform .1s ease,box-shadow .1s ease;}
+.vote-btn b{font-size:34px;font-weight:800;letter-spacing:-.01em;}
+.vote-btn span{font-size:16px;font-weight:800;letter-spacing:.18em;}
+.vote-btn:active{transform:translate(5px,5px);box-shadow:3px 3px 0 var(--sky);}
+.vote-btn:disabled{opacity:.6;}
+.vote-btn:focus-visible{outline:3px solid #fff;outline-offset:6px;}
+.check{width:96px;height:96px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:6px 6px 0 var(--pink);animation:pop .35s cubic-bezier(.2,1.4,.4,1);}
+@keyframes pop{from{transform:scale(.5)}to{transform:scale(1)}}
+.note{margin-top:26px;padding:14px 16px;border-radius:14px;background:#141214;border:1px solid #272427;font-size:13.5px;font-weight:500;color:var(--muted);line-height:1.6;word-break:keep-all;}
+.note b{color:#fff;font-weight:800;}
+.dots{display:flex;gap:8px;margin-bottom:22px;}
+.dots i{width:12px;height:12px;border-radius:50%;background:var(--pink);animation:bl 1.2s infinite ease-in-out;}
+.dots i:nth-child(2){background:var(--yellow);animation-delay:.15s;} .dots i:nth-child(3){background:var(--sky);animation-delay:.3s;}
+@keyframes bl{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+.err{min-height:20px;margin-top:16px;font-size:13px;font-weight:500;color:#FF8F8F;}
+.foot{margin-top:18px;font-size:11.5px;font-weight:500;color:var(--faint);}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="cap">Relay Pitching Live Vote</p>
+  <img class="title" src="title.webp" alt="2026 Beyond OI" width="480" height="330">
+  <span class="tag">릴레이 피칭 투표</span>
+
+  <div class="stage">
+    <!-- 불러오는 중 -->
+    <div class="view on" id="vLoad"><div class="dots"><i></i><i></i><i></i></div><p class="en">불러오는 중… Loading…</p></div>
+
+    <!-- 시작 전 -->
+    <div class="view" id="vIdle">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <h1>곧 투표가 시작됩니다</h1>
+      <p class="en">Voting will open soon.</p>
+      <div class="note">이 화면을 켜 두시면 피칭이 끝날 때마다<br>투표 버튼이 <b>자동으로</b> 나타납니다.<br><span style="font-size:12.5px">Keep this page open. The vote button appears automatically after each pitch.</span></div>
+    </div>
+
+    <!-- 투표 가능 -->
+    <div class="view" id="vOpen">
+      <span class="round" id="openRound"></span>
+      <h1>방금 발표한 기업이<br>인상 깊었다면 투표해주세요</h1>
+      <p class="en">Liked the pitch you just heard? Cast your vote.</p>
+      <button class="vote-btn" id="voteBtn" type="button"><b>투표하기</b><span>VOTE</span></button>
+      <p class="err" id="err" role="alert"></p>
+    </div>
+
+    <!-- 접수 완료 -->
+    <div class="view" id="vDone">
+      <div class="check"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.5L9.5 18L20 6" stroke="#000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <span class="round" id="doneRound"></span>
+      <h1>투표가 접수되었습니다</h1>
+      <p class="en">Your vote has been received. Thank you!</p>
+      <div class="note">다음 피칭이 끝나면 이 화면에서<br>새 투표가 <b>자동으로</b> 열립니다.<br><span style="font-size:12.5px">The next vote will open here automatically.</span></div>
+    </div>
+
+    <!-- 마감 (투표 안 함) -->
+    <div class="view" id="vClosed">
+      <span class="round dim" id="closedRound"></span>
+      <h1>이번 투표는 마감되었습니다</h1>
+      <p class="en">Voting for this pitch is closed.</p>
+      <div class="note">다음 피칭 투표를 기다려주세요.<br><span style="font-size:12.5px">Please wait for the next vote.</span></div>
+    </div>
+  </div>
+  <p class="foot">한 회차에 한 번만 투표할 수 있습니다 · One vote per pitch</p>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k){ try{ return localStorage.getItem(k); }catch(e){ return store.mem[k] || null; } },
+    set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ store.mem[k] = v; } },
+    mem:{}
+  };
+  const VKEY = 'beyondoi_relay_voted';
+  let state = null, busy = false, timer = null;
+
+  function show(id){ document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on', v.id === id)); }
+  function label(r){ return r + '회차 · Round ' + r; }
+
+  function render(){
+    if(!state) return;
+    const voted = store.get(VKEY) === state.id && state.id;
+    if(state.round === 0 || state.status === 'idle'){ show('vIdle'); return; }
+    if(voted){ $('doneRound').textContent = label(state.round); show('vDone'); return; }
+    if(state.status === 'open'){
+      if(!$('vOpen').classList.contains('on')){ $('err').textContent = ''; $('voteBtn').disabled = false; }
+      $('openRound').textContent = label(state.round); show('vOpen'); return;
+    }
+    $('closedRound').textContent = label(state.round); show('vClosed');
+  }
+
+  const API = window.VOTE_API;
+  function call(action, params){
+    const q = new URLSearchParams(Object.assign({api: action, t: Date.now()}, params || {}));
+    return fetch(API + '?' + q.toString(), {cache: 'no-store'}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); });
+  }
+
+  async function poll(){
+    clearTimeout(timer);
+    if(document.hidden) return;
+    try{ state = await call('state'); render(); }catch(e){}
+    timer = setTimeout(poll, 4000 + Math.random()*3000);
+  }
+
+  $('voteBtn').addEventListener('click', async ()=>{
+    if(busy || !state) return;
+    busy = true; $('voteBtn').disabled = true; $('err').textContent = '';
+    const id = state.id;
+    for(let i=0;i<3;i++){
+      try{
+        const r = await call('vote', {id: id});
+        if(r.ok){ store.set(VKEY, id); busy = false; render(); return; }
+        if(r.reason === 'closed'){ busy = false; state = await call('state'); render(); return; }
+      }catch(e){}
+      await new Promise(s=>setTimeout(s, 600 + Math.random()*900));
+    }
+    busy = false; $('voteBtn').disabled = false;
+    $('err').textContent = '접속이 많아 접수되지 않았어요. 다시 눌러주세요. / Please tap again.';
+  });
+
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) poll(); });
+  poll();
+</script>
+</body>
+</html>
