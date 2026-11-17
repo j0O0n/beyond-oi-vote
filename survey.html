@@ -523,6 +523,7 @@
     <div class="check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     <h2>응답해주셔서 감사합니다</h2>
     <p>소중한 의견은 다음 행사와 후속 지원에 반영하겠습니다.<br><span class="en-s">Thank you for your feedback. We will use it to make the next event even better.</span></p>
+    <button type="button" class="submit" style="margin-top:22px" onclick="location.reload()">다시 응답하기 · Submit again</button>
   </div>
 
   <footer>
@@ -634,7 +635,6 @@
         }catch(e){ await new Promise(s=>setTimeout(s, 700 + Math.random()*800)); }
       }
       if(!ok) throw new Error('submit failed');
-      store.set(DONE_KEY, '1');
       form.classList.add('hide');
       $('successView').classList.add('show');
       window.scrollTo({top:0, behavior:'smooth'});
@@ -644,7 +644,6 @@
       submitBtn.disabled = false;
     }
   });
-  if(store.get(DONE_KEY)){ form.classList.add('hide'); $('successView').classList.add('show'); }
 </script>
 
 </body>
